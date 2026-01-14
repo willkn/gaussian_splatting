@@ -110,26 +110,51 @@ if st.session_state.step == 'welcome':
         st.rerun()
 
 elif st.session_state.step == 'capture':
-    st.markdown('<div class="status-badge">STEP 1: CAPTURE</div>', unsafe_allow_html=True)
-    st.write("Snap photos of your object from different angles.")
+    st.markdown('<div class="status-badge">STEP 1: UPLOAD PHOTOS</div>', unsafe_allow_html=True)
+    st.write("Take photos of your object. They will be added to the gallery below.")
     
-    cam_img = st.camera_input("Object View", label_visibility="collapsed")
+    # Cumulative upload logic
+    new_images = st.file_uploader(
+        "Add Photo", 
+        type=['png', 'jpg', 'jpeg'], 
+        accept_multiple_files=True,
+        key="uploader",
+        label_visibility="collapsed"
+    )
     
-    if cam_img:
-        st.session_state.images.append(cam_img)
-        st.success(f"Captured {len(st.session_state.images)} images")
-        
-    cols = st.columns(3)
-    if st.button("Cancel", type="secondary"):
+    if new_images:
+        # Check for duplicates or unique IDs to prevent infinite loop on rerun
+        # but for simplicity we'll just clear the uploader state
+        for img in new_images:
+            if img not in st.session_state.images:
+                st.session_state.images.append(img)
+        st.rerun()
+
+    # Gallery Display
+    if st.session_state.images:
+        st.write(f"### Gallery ({len(st.session_state.images)} photos)")
+        cols = st.columns(3)
+        for idx, img in enumerate(st.session_state.images):
+            cols[idx % 3].image(img, use_container_width=True)
+            
+    st.markdown('<div style="margin-top: 2rem;"></div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Clear All", type="secondary"):
+            st.session_state.images = []
+            st.rerun()
+    with col2:
+        if len(st.session_state.images) >= 3:
+            if st.button("Generate Splat ⚡"):
+                go_to_processing()
+                st.rerun()
+        else:
+            st.button(f"Need {3 - len(st.session_state.images)} more", disabled=True)
+            
+    if st.button("Back to Welcome"):
         reset_app()
         st.rerun()
-    
-    if len(st.session_state.images) >= 3:
-        if st.button("Generate Splat ⚡"):
-            go_to_processing()
-            st.rerun()
-    elif len(st.session_state.images) > 0:
-        st.info(f"Need {3 - len(st.session_state.images)} more images for FFN mode.")
 
 elif st.session_state.step == 'processing':
     st.markdown('<div class="status-badge">STEP 2: FFN RECONSTRUCTION</div>', unsafe_allow_html=True)
